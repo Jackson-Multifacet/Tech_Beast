@@ -1,4 +1,4 @@
-import { motion, AnimatePresence } from "motion/react";
+import { motion, AnimatePresence, useScroll, useSpring } from "motion/react";
 import { 
   Github, 
   Linkedin, 
@@ -19,50 +19,106 @@ import {
   Star,
   Sparkles,
   Phone,
-  X
+  X,
+  ArrowUp,
+  Moon,
+  Sun
 } from "lucide-react";
 import React, { useRef, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { getCldUrl } from "../lib/cloudinary";
 import { db } from "../lib/firebase";
 import SEO from "../components/SEO";
-import { collection, onSnapshot, query, orderBy } from "firebase/firestore";
+import MatrixRain from "../components/MatrixRain";
+import { collection, onSnapshot, query, orderBy, addDoc, serverTimestamp } from "firebase/firestore";
 
 const Section = ({ children, className = "", id = "" }: { children: React.ReactNode; className?: string; id?: string }) => (
-  <section id={id} className={`min-h-screen flex flex-col justify-center px-6 md:px-24 py-20 ${className}`}>
+  <section id={id} className={`min-h-[80vh] flex flex-col justify-center px-5 md:px-24 py-12 md:py-20 ${className}`}>
     {children}
   </section>
 );
 
-const Nav = () => (
-  <nav className="fixed top-0 left-0 w-full z-50 flex justify-between items-center px-6 md:px-12 py-6 bg-white/80 dark:bg-brand-dark/80 backdrop-blur-xl border-b border-black/5 dark:border-white/5">
-    <motion.div 
-      initial={{ opacity: 0, x: -20 }}
-      animate={{ opacity: 1, x: 0 }}
-      className="flex items-center gap-2 text-2xl font-display font-black tracking-tighter dark:text-white text-brand-dark"
-    >
-      <Zap className="text-brand-accent fill-brand-accent" size={24} />
-      TECH BEAST<span className="text-brand-accent">.</span>
-    </motion.div>
-    <div className="hidden md:flex gap-10 text-xs font-bold uppercase tracking-[0.2em] dark:text-white/70 text-brand-dark/70">
-      {['About', 'Services', 'Projects', 'Skills', 'Experience', 'Contact'].map((item) => (
-        <a key={item} href={`#${item.toLowerCase()}`} className="hover:text-brand-accent transition-all hover:tracking-[0.3em]">
-          {item}
-        </a>
-      ))}
-    </div>
-    <div className="flex items-center gap-6">
-      <motion.a 
-        href="#contact"
-        whileHover={{ scale: 1.05, boxShadow: "0 0 20px rgba(255, 0, 122, 0.4)" }}
-        whileTap={{ scale: 0.95 }}
-        className="px-8 py-3 bg-brand-accent text-white font-black rounded-full text-xs uppercase tracking-widest shadow-lg shadow-brand-accent/20"
+const Nav = ({ isDark, toggleTheme }: { isDark: boolean, toggleTheme: () => void }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  
+  return (
+    <nav className="fixed top-0 left-0 w-full z-[100] flex justify-between items-center px-5 md:px-12 py-4 md:py-6 bg-white/80 dark:bg-brand-dark/80 backdrop-blur-xl border-b border-black/5 dark:border-white/5">
+      <motion.div 
+        initial={{ opacity: 0, x: -20 }}
+        animate={{ opacity: 1, x: 0 }}
+        className="flex items-center gap-2 text-xl md:text-2xl font-display font-black tracking-tighter dark:text-white text-brand-dark"
       >
-        LET'S TALK
-      </motion.a>
-    </div>
-  </nav>
-);
+        <Zap className="text-brand-accent fill-brand-accent" size={20} />
+        TECH BEAST<span className="text-brand-accent">.</span>
+      </motion.div>
+      
+      {/* Desktop Menu */}
+      <div className="hidden md:flex gap-10 text-xs font-bold uppercase tracking-[0.2em] dark:text-white/70 text-brand-dark/70">
+        {['About', 'Services', 'Projects', 'Skills', 'Experience', 'Contact'].map((item) => (
+          <a key={item} href={`#${item.toLowerCase()}`} className="hover:text-brand-accent transition-all hover:tracking-[0.3em]">
+            {item}
+          </a>
+        ))}
+      </div>
+      
+      <div className="flex items-center gap-3 md:gap-6">
+        <button 
+          onClick={toggleTheme}
+          className="p-2.5 md:p-3 bg-black/5 dark:bg-white/5 rounded-full hover:bg-brand-accent hover:text-white transition-all dark:text-white text-brand-dark"
+        >
+          {isDark ? <Sun size={18} /> : <Moon size={18} />}
+        </button>
+        
+        <motion.a 
+          href="#contact"
+          whileHover={{ scale: 1.05, boxShadow: "0 0 20px rgba(255, 0, 122, 0.4)" }}
+          whileTap={{ scale: 0.95 }}
+          className="hidden sm:block px-6 md:px-8 py-2.5 md:py-3 bg-brand-accent text-white font-black rounded-full text-[10px] md:text-xs uppercase tracking-widest shadow-lg shadow-brand-accent/20"
+        >
+          LET'S TALK
+        </motion.a>
+        
+        {/* Mobile Menu Toggle */}
+        <button 
+          onClick={() => setIsOpen(!isOpen)}
+          className="md:hidden p-2.5 bg-black/5 dark:bg-white/5 rounded-full dark:text-white text-brand-dark"
+        >
+          {isOpen ? <X size={20} /> : <Layers size={20} />}
+        </button>
+      </div>
+
+      {/* Mobile Menu Overlay */}
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="absolute top-full left-0 w-full bg-white dark:bg-brand-dark border-b border-black/10 dark:border-white/10 p-8 flex flex-col gap-6 md:hidden shadow-2xl"
+          >
+            {['About', 'Services', 'Projects', 'Skills', 'Experience', 'Contact'].map((item) => (
+              <a 
+                key={item} 
+                href={`#${item.toLowerCase()}`} 
+                onClick={() => setIsOpen(false)}
+                className="text-sm font-black uppercase tracking-[0.3em] dark:text-white text-brand-dark hover:text-brand-accent transition-all"
+              >
+                {item}
+              </a>
+            ))}
+            <a 
+              href="#contact" 
+              onClick={() => setIsOpen(false)}
+              className="mt-4 px-8 py-4 bg-brand-accent text-white font-black rounded-2xl text-center text-xs uppercase tracking-widest"
+            >
+              LET'S TALK
+            </a>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </nav>
+  );
+};
 
 const MarqueeSkills = () => {
   const skills = ["FULL-STACK DEV", "IT INFRASTRUCTURE", "VIDEO EDITING", "BRANDING", "UI/UX DESIGN", "SYSTEMS ADMIN", "MOTION GRAPHICS", "API DESIGN"];
@@ -72,7 +128,7 @@ const MarqueeSkills = () => {
         {[...skills, ...skills].map((skill, i) => (
           <div key={i} className="flex items-center mx-10">
             <Star className="text-brand-accent mr-4" size={20} />
-            <span className="text-4xl md:text-6xl font-display font-black text-transparent stroke-1 stroke-brand-dark dark:stroke-white opacity-20 hover:opacity-100 transition-opacity cursor-default">
+            <span className="text-4xl md:text-6xl font-display font-black dark:text-white/20 text-brand-dark/20 hover:dark:text-white hover:text-brand-dark transition-all duration-300 cursor-default">
               {skill}
             </span>
           </div>
@@ -88,6 +144,82 @@ export default function Home() {
   const [isContactOpen, setIsContactOpen] = useState(false);
   const [isRegisterOpen, setIsRegisterOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('Software');
+  const [showBackToTop, setShowBackToTop] = useState(false);
+  const [isDark, setIsDark] = useState(() => {
+    // Read from DOM first (most reliable), then localStorage, then system preference
+    if (typeof window !== 'undefined') {
+      if (document.documentElement.classList.contains('dark')) return true;
+      const stored = localStorage.getItem('theme');
+      if (stored === 'dark') return true;
+      if (stored === 'light') return false;
+      return window.matchMedia('(prefers-color-scheme: dark)').matches;
+    }
+    return true;
+  });
+
+  // Terminal Typing Effect State
+  const [typingText, setTypingText] = useState("");
+  const fullText = "I bridge the gap between Systems, Code, and Creative Media.";
+  const [cursorVisible, setCursorVisible] = useState(true);
+
+  // Typing Effect Logic
+  useEffect(() => {
+    let i = 0;
+    const typingInterval = setInterval(() => {
+      if (i <= fullText.length) {
+        setTypingText(fullText.substring(0, i));
+        i++;
+      } else {
+        clearInterval(typingInterval);
+      }
+    }, 50);
+
+    const cursorInterval = setInterval(() => {
+      setCursorVisible(prev => !prev);
+    }, 500);
+
+    return () => {
+      clearInterval(typingInterval);
+      clearInterval(cursorInterval);
+    };
+  }, []);
+
+  const toggleTheme = () => {
+    const newDark = !isDark;
+    setIsDark(newDark);
+    // Apply immediately to DOM without waiting for useEffect
+    if (newDark) {
+      document.documentElement.classList.add('dark');
+      localStorage.setItem('theme', 'dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+      localStorage.setItem('theme', 'light');
+    }
+  };
+
+  useEffect(() => {
+    if (isDark) {
+      document.documentElement.classList.add('dark');
+      localStorage.setItem('theme', 'dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+      localStorage.setItem('theme', 'light');
+    }
+  }, [isDark]);
+
+  // Scroll Progress
+  const { scrollYProgress } = useScroll();
+  const scaleX = useSpring(scrollYProgress, {
+    stiffness: 100,
+    damping: 30,
+    restDelta: 0.001
+  });
+
+  useEffect(() => {
+    return scrollYProgress.on('change', (latest) => {
+      setShowBackToTop(latest > 0.1);
+    });
+  }, [scrollYProgress]);
   
   // Data State
   const [softwareProjects, setSoftwareProjects] = useState<any[]>([]);
@@ -116,8 +248,6 @@ export default function Home() {
   const [registerStatus, setRegisterStatus] = useState<{ type: 'idle' | 'loading' | 'success' | 'error', message?: string }>({ type: 'idle' });
 
   useEffect(() => {
-    document.documentElement.classList.add('dark');
-
     if (!db) return;
 
     // Fetch Software Projects
@@ -154,34 +284,51 @@ export default function Home() {
 
   const handleNewsletterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newsletterEmail) return;
+    if (!newsletterEmail || !db) return;
     setNewsletterStatus({ type: 'loading' });
-    // For demo, we just show success. In real app, save to Firestore
-    setTimeout(() => {
+    try {
+      await addDoc(collection(db, 'newsletter'), {
+        email: newsletterEmail,
+        createdAt: serverTimestamp()
+      });
       setNewsletterStatus({ type: 'success', message: "Thanks for subscribing!" });
       setNewsletterEmail("");
-    }, 1000);
+    } catch (err: any) {
+      setNewsletterStatus({ type: 'error', message: "Subscription failed. Please try again." });
+    }
   };
 
   const handleRegisterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!registerForm.name || !registerForm.email) return;
+    if (!registerForm.name || !registerForm.email || !db) return;
     setRegisterStatus({ type: 'loading' });
-    // For demo, we just show success. In real app, save to Firestore
-    setTimeout(() => {
-      setRegisterStatus({ type: 'success', message: "Registration successful!" });
+    try {
+      await addDoc(collection(db, 'registrations'), {
+        ...registerForm,
+        createdAt: serverTimestamp()
+      });
+      setRegisterStatus({ type: 'success', message: "Message sent! I'll get back to you soon." });
       setRegisterForm({ name: "", email: "", company: "", message: "" });
       setTimeout(() => {
-        setIsRegisterOpen(false);
+        setIsContactOpen(false);
         setRegisterStatus({ type: 'idle' });
-      }, 2000);
-    }, 1000);
+      }, 3000);
+    } catch (err: any) {
+      setRegisterStatus({ type: 'error', message: "Failed to send message. Please try again." });
+    }
   };
 
   return (
-    <div ref={containerRef} className="bg-brand-light dark:bg-brand-dark transition-colors duration-700">
+    <div ref={containerRef} className="bg-brand-light dark:bg-brand-dark transition-colors duration-700 relative">
+      {/* Matrix Rain Background - hacker atmosphere */}
+      <MatrixRain />
+      {/* Scroll Progress Bar */}
+      <motion.div
+        className="fixed top-0 left-0 right-0 h-1 bg-brand-accent origin-left z-[60]"
+        style={{ scaleX }}
+      />
       <SEO />
-      <Nav />
+      <Nav isDark={isDark} toggleTheme={toggleTheme} />
 
       {/* Floating Contact Toggle */}
       <div className="fixed bottom-10 right-10 z-[100]">
@@ -202,22 +349,27 @@ export default function Home() {
                   <Zap size={20} className="text-brand-accent rotate-45" />
                 </button>
               </div>
-              <form className="space-y-6" onSubmit={(e) => e.preventDefault()}>
+              <form className="space-y-6" onSubmit={handleRegisterSubmit}>
                 <div className="space-y-2">
                   <label className="text-[10px] uppercase tracking-[0.3em] font-black dark:text-white/40 text-brand-dark/40">Name</label>
-                  <input type="text" className="w-full bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-xl px-5 py-4 focus:border-brand-accent outline-none transition-all dark:text-white text-brand-dark font-bold text-sm" placeholder="John Doe" />
+                  <input type="text" value={registerForm.name} onChange={(e) => setRegisterForm({...registerForm, name: e.target.value})} required className="w-full bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-xl px-5 py-4 focus:border-brand-accent outline-none transition-all dark:text-white text-brand-dark font-bold text-sm" placeholder="John Doe" />
                 </div>
                 <div className="space-y-2">
                   <label className="text-[10px] uppercase tracking-[0.3em] font-black dark:text-white/40 text-brand-dark/40">Email</label>
-                  <input type="email" className="w-full bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-xl px-5 py-4 focus:border-brand-accent outline-none transition-all dark:text-white text-brand-dark font-bold text-sm" placeholder="john@example.com" />
+                  <input type="email" value={registerForm.email} onChange={(e) => setRegisterForm({...registerForm, email: e.target.value})} required className="w-full bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-xl px-5 py-4 focus:border-brand-accent outline-none transition-all dark:text-white text-brand-dark font-bold text-sm" placeholder="john@example.com" />
                 </div>
                 <div className="space-y-2">
                   <label className="text-[10px] uppercase tracking-[0.3em] font-black dark:text-white/40 text-brand-dark/40">Message</label>
-                  <textarea rows={4} className="w-full bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-2xl px-5 py-4 focus:border-brand-accent outline-none transition-all resize-none dark:text-white text-brand-dark font-bold text-sm" placeholder="Tell me about your project..." />
+                  <textarea rows={4} value={registerForm.message} onChange={(e) => setRegisterForm({...registerForm, message: e.target.value})} className="w-full bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-2xl px-5 py-4 focus:border-brand-accent outline-none transition-all resize-none dark:text-white text-brand-dark font-bold text-sm" placeholder="Tell me about your project..." />
                 </div>
-                <button className="w-full py-5 bg-brand-accent text-white font-black rounded-2xl hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl shadow-brand-accent/30 tracking-[0.2em] uppercase text-xs">
-                  SEND MESSAGE
+                <button type="submit" disabled={registerStatus.type === 'loading'} className="w-full py-5 bg-brand-accent text-white font-black rounded-2xl hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl shadow-brand-accent/30 tracking-[0.2em] uppercase text-xs disabled:opacity-50">
+                  {registerStatus.type === 'loading' ? 'SENDING...' : 'SEND MESSAGE'}
                 </button>
+                {registerStatus.message && (
+                  <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className={`text-center font-bold text-xs mt-2 ${registerStatus.type === 'success' ? 'text-brand-primary' : 'text-red-500'}`}>
+                    {registerStatus.message}
+                  </motion.p>
+                )}
               </form>
             </motion.div>
           )}
@@ -232,6 +384,21 @@ export default function Home() {
           <Mail size={28} className={`transition-transform duration-500 ${isContactOpen ? 'rotate-90 opacity-0' : 'rotate-0 opacity-100'}`} />
           <Zap size={28} className={`absolute transition-transform duration-500 ${isContactOpen ? 'rotate-0 opacity-100' : '-rotate-90 opacity-0'}`} />
         </motion.button>
+        
+        {/* Back to Top Button */}
+        <AnimatePresence>
+          {showBackToTop && (
+            <motion.button
+              initial={{ opacity: 0, scale: 0.5, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.5, y: 20 }}
+              onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+              className="mt-4 w-12 h-12 bg-white dark:bg-white/10 text-brand-dark dark:text-white rounded-full flex items-center justify-center shadow-xl hover:bg-brand-accent hover:text-white transition-all border border-black/10 dark:border-white/10 mx-auto"
+            >
+              <ArrowUp size={20} />
+            </motion.button>
+          )}
+        </AnimatePresence>
       </div>
       
       {/* Hero Section */}
@@ -266,12 +433,12 @@ export default function Home() {
               <span className="text-xs font-black tracking-widest text-white uppercase">AVAILABLE FOR NEW PROJECTS</span>
             </motion.div>
             
-            <div className="relative mb-10 group w-full">
+            <div className="relative mb-6 md:mb-10 group w-full">
               <motion.h1 
                 initial={{ opacity: 0, y: 50 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.2, type: "spring", stiffness: 100 }}
-                className="text-7xl md:text-8xl lg:text-[10rem] font-display font-black leading-[0.8] dark:text-white text-brand-dark tracking-tight"
+                className="text-5xl sm:text-7xl md:text-8xl lg:text-[10rem] font-display font-black leading-[0.8] dark:text-white text-brand-dark tracking-tight"
               >
                 TECH
               </motion.h1>
@@ -279,39 +446,48 @@ export default function Home() {
                 initial={{ scaleX: 0 }}
                 animate={{ scaleX: 1 }}
                 transition={{ delay: 0.5, duration: 0.8 }}
-                className="h-24 md:h-40 w-full max-w-[600px] bg-gradient-to-r from-brand-primary via-brand-secondary to-brand-accent mt-2 rounded-xl flex items-center px-8"
+                className="h-16 sm:h-24 md:h-40 w-full max-w-[600px] bg-gradient-to-r from-brand-primary via-brand-secondary to-brand-accent mt-2 rounded-xl flex items-center px-4 md:px-8"
               >
-                <span className="text-white font-display font-black text-6xl md:text-8xl tracking-tighter">BEAST</span>
+                <span className="text-white font-display font-black text-4xl sm:text-6xl md:text-8xl tracking-tighter">BEAST</span>
               </motion.div>
             </div>
             
-            <motion.p 
+            <motion.div 
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.4 }}
-              className="text-2xl md:text-4xl dark:text-white text-brand-dark max-w-xl mb-12 font-bold leading-tight"
+              className="text-lg sm:text-2xl md:text-4xl dark:text-white text-brand-dark max-w-xl mb-8 md:mb-12 font-mono leading-relaxed bg-black/5 dark:bg-white/5 p-4 md:p-6 rounded-2xl border border-black/10 dark:border-white/10 shadow-inner"
             >
-              I bridge the gap between <span className="text-brand-primary">Systems</span>, <span className="text-brand-secondary">Code</span>, and <span className="text-brand-accent">Creative Media</span>.
-            </motion.p>
+              <div className="flex items-center gap-2 mb-3 md:mb-4 opacity-50">
+                <div className="w-2.5 h-2.5 rounded-full bg-red-500"></div>
+                <div className="w-2.5 h-2.5 rounded-full bg-yellow-500"></div>
+                <div className="w-2.5 h-2.5 rounded-full bg-green-500"></div>
+              </div>
+              <span className="text-brand-accent mr-2">{'>'}</span>
+              <span className="text-brand-dark dark:text-white font-bold">{typingText}</span>
+              <span className={`inline-block w-2.5 h-5 md:w-3 md:h-6 bg-brand-accent ml-1 align-middle ${cursorVisible ? 'opacity-100' : 'opacity-0'}`}></span>
+            </motion.div>
             
             <motion.div 
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.6 }}
-              className="flex flex-wrap items-center gap-6"
+              className="flex flex-wrap items-center gap-4 md:gap-6"
             >
-              <a href="#projects" className="px-10 py-5 bg-white text-brand-dark font-black rounded-2xl hover:scale-105 transition-all flex items-center gap-3 group shadow-2xl">
+              <a href="#projects" className="px-6 md:px-10 py-4 md:py-5 bg-white text-brand-dark font-black rounded-xl md:rounded-2xl hover:scale-105 transition-all flex items-center gap-2 md:gap-3 group shadow-2xl border border-black/5 text-sm md:text-base">
                 EXPLORE PROJECTS <ChevronRight className="group-hover:translate-x-2 transition-transform" />
               </a>
-              <button 
-                onClick={() => setIsRegisterOpen(true)}
-                className="px-10 py-5 bg-brand-accent text-white font-black rounded-2xl hover:scale-105 transition-all flex items-center gap-3 group shadow-2xl shadow-brand-accent/30"
+              <a 
+                href="/resume.pdf" 
+                target="_blank"
+                download="Faith_Jackson_Resume.pdf"
+                className="px-6 md:px-10 py-4 md:py-5 bg-brand-accent text-white font-black rounded-xl md:rounded-2xl hover:scale-105 transition-all flex items-center gap-2 md:gap-3 group shadow-2xl shadow-brand-accent/30 text-sm md:text-base"
               >
-                REGISTER AS CLIENT <Zap className="group-hover:rotate-12 transition-transform" />
-              </button>
-              <div className="flex items-center gap-4">
-                <a href="https://github.com/Jackson-Multifacet" target="_blank" rel="noopener noreferrer" className="p-4 bg-white/5 rounded-2xl hover:bg-brand-accent hover:text-white transition-all dark:text-white text-brand-dark border border-white/10"><Github size={24} /></a>
-                <a href="https://www.linkedin.com/in/faith-jackson-3a3758160/" target="_blank" rel="noopener noreferrer" className="p-4 bg-white/5 rounded-2xl hover:bg-brand-accent hover:text-white transition-all dark:text-white text-brand-dark border border-white/10"><Linkedin size={24} /></a>
+                DOWNLOAD RESUME <Terminal className="group-hover:rotate-12 transition-transform" />
+              </a>
+              <div className="flex items-center gap-3 md:gap-4">
+                <a href="https://github.com/Jackson-Multifacet" target="_blank" rel="noopener noreferrer" className="p-3 md:p-4 bg-white/5 rounded-xl md:rounded-2xl hover:bg-brand-accent hover:text-white transition-all dark:text-white text-brand-dark border border-white/10"><Github size={20} /></a>
+                <a href="https://www.linkedin.com/in/faith-jackson-3a3758160/" target="_blank" rel="noopener noreferrer" className="p-3 md:p-4 bg-white/5 rounded-xl md:rounded-2xl hover:bg-brand-accent hover:text-white transition-all dark:text-white text-brand-dark border border-white/10"><Linkedin size={20} /></a>
               </div>
             </motion.div>
           </div>
@@ -320,11 +496,11 @@ export default function Home() {
             initial={{ opacity: 0, scale: 0.5, rotate: -10 }}
             animate={{ opacity: 1, scale: 1, rotate: 0 }}
             transition={{ delay: 0.3, duration: 1, type: "spring" }}
-            className="order-2 lg:order-2 relative group flex justify-center items-center"
+            className="order-2 lg:order-2 relative group flex justify-center items-center mt-12 lg:mt-0"
           >
-            <div className="relative z-10 w-full max-w-[500px] aspect-[4/5] rounded-[3rem] overflow-hidden border-4 border-white/10 shadow-[0_50px_100px_-20px_rgba(0,0,0,0.5)]">
+            <div className="relative z-10 w-full max-w-[300px] sm:max-w-[400px] md:max-w-[500px] aspect-[4/5] rounded-[2rem] md:rounded-[3rem] overflow-hidden border-4 border-white/10 shadow-[0_30px_60px_-15px_rgba(0,0,0,0.5)]">
               <img 
-                src="input_file_3.png" 
+                src="assets/about.jpg" 
                 alt="Faith John Jackson" 
                 className="w-full h-full object-cover object-center group-hover:scale-110 transition-transform duration-1000"
                 referrerPolicy="no-referrer"
@@ -337,21 +513,21 @@ export default function Home() {
             <motion.div 
               animate={{ y: [0, -10, 0] }}
               transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-              className="absolute top-[-20px] left-1/2 -translate-x-1/2 px-8 py-4 bg-brand-primary text-brand-dark rounded-full font-black shadow-2xl z-20 text-sm"
+              className="absolute -top-4 md:-top-5 left-1/2 -translate-x-1/2 px-4 md:px-8 py-2 md:py-4 bg-brand-primary text-brand-dark rounded-full font-black shadow-2xl z-20 text-[10px] md:text-sm"
             >
               DEV
             </motion.div>
             <motion.div 
               animate={{ x: [0, 10, 0] }}
               transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
-              className="absolute top-1/2 -right-10 -translate-y-1/2 px-8 py-4 bg-brand-accent text-white rounded-full font-black shadow-2xl z-20 text-sm"
+              className="absolute top-1/2 -right-4 md:-right-10 -translate-y-1/2 px-4 md:px-8 py-2 md:py-4 bg-brand-accent text-white rounded-full font-black shadow-2xl z-20 text-[10px] md:text-sm"
             >
               IT
             </motion.div>
             <motion.div 
               animate={{ y: [0, 10, 0] }}
               transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
-              className="absolute bottom-[-20px] left-1/2 -translate-x-1/2 px-8 py-4 bg-brand-secondary text-white rounded-full font-black shadow-2xl z-20 text-sm"
+              className="absolute -bottom-4 md:-bottom-5 left-1/2 -translate-x-1/2 px-4 md:px-8 py-2 md:py-4 bg-brand-secondary text-white rounded-full font-black shadow-2xl z-20 text-[10px] md:text-sm"
             >
               DESIGN
             </motion.div>
@@ -364,12 +540,12 @@ export default function Home() {
       {/* Projects Section */}
       <Section id="projects" className="relative overflow-hidden">
         <div className="max-w-7xl mx-auto w-full">
-          <div className="flex flex-col md:flex-row justify-between items-end mb-16 gap-8">
-            <h2 className="text-6xl md:text-9xl font-display font-black dark:text-white text-brand-dark leading-none">
+          <div className="flex flex-col md:flex-row justify-between items-end mb-10 md:mb-16 gap-6 md:gap-8">
+            <h2 className="text-4xl sm:text-6xl md:text-9xl font-display font-black dark:text-white text-brand-dark leading-none">
               SELECTED <br /> <span className="text-gradient">PROJECTS.</span>
             </h2>
-            <div className="max-w-md text-right">
-              <p className="text-xl dark:text-white/40 text-brand-dark/40 font-bold uppercase tracking-widest mb-4">
+            <div className="max-w-md md:text-right">
+              <p className="text-sm md:text-xl dark:text-white/40 text-brand-dark/40 font-bold uppercase tracking-widest mb-3 md:mb-4">
                 A curated selection of projects spanning infrastructure, development, and design.
               </p>
               <p className="text-[10px] dark:text-brand-accent/60 text-brand-accent/60 font-black uppercase tracking-[0.2em] leading-relaxed italic">
@@ -378,12 +554,12 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="flex flex-wrap gap-4 mb-16 border-b border-black/5 dark:border-white/5 pb-8">
+          <div className="flex flex-wrap gap-3 md:gap-4 mb-10 md:mb-16 border-b border-black/5 dark:border-white/5 pb-6 md:pb-8">
             {['Software', 'Graphics', 'Articles'].map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
-                className={`px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-[0.2em] transition-all ${
+                className={`px-6 md:px-8 py-3 md:py-4 rounded-xl md:rounded-2xl font-black text-[10px] md:text-xs uppercase tracking-[0.2em] transition-all ${
                   activeTab === tab 
                   ? 'bg-brand-accent text-white shadow-xl shadow-brand-accent/20' 
                   : 'bg-black/5 dark:bg-white/5 dark:text-white/40 text-brand-dark/40 hover:bg-brand-accent/10'
@@ -491,11 +667,11 @@ export default function Home() {
                     className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
                   />
                 </div>
-                <div className="p-10">
+                <div className="p-6 md:p-10">
                   <span className="text-brand-accent font-black text-[10px] uppercase tracking-[0.3em] mb-4 block">{article.date}</span>
-                  <h3 className="text-3xl font-display font-black dark:text-white text-brand-dark mb-4">{article.title}</h3>
-                  <p className="dark:text-white/60 text-brand-dark/60 mb-8 font-medium leading-relaxed">{article.desc}</p>
-                  <button className="flex items-center gap-2 text-brand-accent font-black tracking-widest text-xs uppercase">
+                  <h3 className="text-2xl md:text-3xl font-display font-black dark:text-white text-brand-dark mb-4">{article.title}</h3>
+                  <p className="text-sm md:text-base dark:text-white/60 text-brand-dark/60 mb-6 md:mb-8 font-medium leading-relaxed">{article.desc}</p>
+                  <button className="flex items-center gap-2 text-brand-accent font-black tracking-widest text-[10px] md:text-xs uppercase">
                     Read Article <ChevronRight size={16} />
                   </button>
                 </div>
@@ -514,16 +690,16 @@ export default function Home() {
             viewport={{ once: true }}
             className="relative"
           >
-            <div className="aspect-square rounded-[4rem] overflow-hidden shadow-2xl border-8 border-white/10">
+            <div className="aspect-square rounded-[2.5rem] md:rounded-[4rem] overflow-hidden shadow-2xl border-4 md:border-8 border-white/10">
               <img 
-                src="input_file_3.png" 
+                src="assets/hero.jpg" 
                 alt="Faith John Jackson" 
                 className="w-full h-full object-cover"
                 referrerPolicy="no-referrer"
               />
             </div>
-            <div className="absolute -bottom-12 -right-12 p-12 bg-brand-secondary text-white rounded-[3rem] font-display font-black text-4xl shadow-2xl">
-              3+ <br /> YEARS
+            <div className="absolute -bottom-6 -right-6 md:-bottom-12 md:-right-12 p-6 md:p-12 bg-brand-secondary text-white rounded-[2rem] md:rounded-[3rem] font-display font-black text-2xl md:text-4xl shadow-2xl">
+              {new Date().getFullYear() - 2021}+ <br /> YEARS
             </div>
           </motion.div>
           
@@ -545,15 +721,15 @@ export default function Home() {
               the ecosystems it runs on and design the media that sells it.
             </p>
             
-            <div className="grid grid-cols-2 gap-8">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-8">
               {[
                 { title: "Education", items: ["ALX Software Engineering", "Ritman B.A. History"] },
                 { title: "Certifications", items: ["FreeCodeCamp Web Dev", "Google IT Support"] }
               ].map((box, i) => (
-                <div key={i} className="p-8 bg-white dark:bg-white/5 rounded-[2.5rem] border border-black/5 dark:border-white/5 shadow-xl">
-                  <h3 className="text-brand-accent font-black mb-4 uppercase tracking-widest text-sm">{box.title}</h3>
+                <div key={i} className="p-6 md:p-8 bg-white dark:bg-white/5 rounded-[2rem] md:rounded-[2.5rem] border border-black/5 dark:border-white/5 shadow-xl">
+                  <h3 className="text-brand-accent font-black mb-3 md:mb-4 uppercase tracking-widest text-xs md:text-sm">{box.title}</h3>
                   {box.items.map((item, j) => (
-                    <p key={j} className="text-sm dark:text-white/60 text-brand-dark/60 font-bold mb-1">{item}</p>
+                    <p key={j} className="text-xs md:text-sm dark:text-white/60 text-brand-dark/60 font-bold mb-1">{item}</p>
                   ))}
                 </div>
               ))}
@@ -597,14 +773,14 @@ export default function Home() {
             <motion.div 
               key={i}
               whileHover={{ y: -20, scale: 1.02 }}
-              className="p-12 bg-white dark:bg-white/5 rounded-[3.5rem] border border-black/5 dark:border-white/5 shadow-2xl group transition-all"
+              className="p-8 md:p-12 bg-white dark:bg-white/5 rounded-[2.5rem] md:rounded-[3.5rem] border border-black/5 dark:border-white/5 shadow-2xl group transition-all"
             >
-              <div className={`mb-10 p-6 bg-black/5 dark:bg-white/5 w-fit rounded-3xl group-hover:bg-brand-accent group-hover:text-white transition-all`}>
-                {service.icon}
+              <div className={`mb-6 md:mb-10 p-4 md:p-6 bg-black/5 dark:bg-white/5 w-fit rounded-2xl md:rounded-3xl group-hover:bg-brand-accent group-hover:text-white transition-all`}>
+                {React.isValidElement(service.icon) ? React.cloneElement(service.icon as React.ReactElement<any>, { size: 32 }) : service.icon}
               </div>
-              <h3 className="text-3xl font-display font-black mb-6 dark:text-white text-brand-dark">{service.title}</h3>
-              <p className="dark:text-white/60 text-brand-dark/60 mb-10 leading-relaxed text-lg font-medium">{service.desc}</p>
-              <div className="flex items-center gap-2 text-brand-accent font-black tracking-widest text-xs">
+              <h3 className="text-2xl md:text-3xl font-display font-black mb-4 md:mb-6 dark:text-white text-brand-dark">{service.title}</h3>
+              <p className="text-sm md:text-lg dark:text-white/60 text-brand-dark/60 mb-8 md:mb-10 leading-relaxed font-medium">{service.desc}</p>
+              <div className="flex items-center gap-2 text-brand-accent font-black tracking-widest text-[10px] md:text-xs">
                 LEARN MORE <ChevronRight size={16} />
               </div>
             </motion.div>
@@ -615,9 +791,9 @@ export default function Home() {
       {/* Skills Matrix */}
       <Section id="skills" className="bg-brand-accent/5">
         <div className="max-w-7xl mx-auto w-full">
-          <div className="text-center mb-24">
-            <h2 className="text-5xl md:text-8xl font-display font-black mb-6 dark:text-white text-brand-dark">SKILLS <span className="text-gradient">MATRIX</span></h2>
-            <div className="w-24 h-2 bg-brand-accent mx-auto rounded-full" />
+          <div className="text-center mb-16 md:mb-24">
+            <h2 className="text-4xl sm:text-5xl md:text-8xl font-display font-black mb-6 dark:text-white text-brand-dark">SKILLS <span className="text-gradient">MATRIX</span></h2>
+            <div className="w-16 md:w-24 h-1.5 md:h-2 bg-brand-accent mx-auto rounded-full" />
           </div>
           
           <div className="grid md:grid-cols-3 gap-16">
@@ -663,11 +839,11 @@ export default function Home() {
 
       {/* Experience Section */}
       <Section id="experience">
-        <h2 className="text-6xl md:text-9xl font-display font-black mb-32 dark:text-white text-brand-dark leading-none">
+        <h2 className="text-5xl sm:text-6xl md:text-9xl font-display font-black mb-16 md:mb-32 dark:text-white text-brand-dark leading-none">
           THE <br /> <span className="text-white/20">JOURNEY.</span>
         </h2>
         
-        <div className="space-y-24">
+        <div className="space-y-16 md:space-y-24">
           {[
             {
               role: "Lead Developer",
@@ -696,55 +872,55 @@ export default function Home() {
               whileInView={{ opacity: 1, x: 0 }}
               initial={{ opacity: 0, x: -100 }}
               viewport={{ once: true }}
-              className="relative pl-20 md:pl-32 border-l-4 dark:border-white/5 border-black/5"
+              className="relative pl-12 md:pl-32 border-l-2 md:border-l-4 dark:border-white/5 border-black/5"
             >
-              <div className={`absolute left-[-14px] top-0 w-6 h-6 rounded-full bg-brand-accent shadow-[0_0_30px_rgba(255,0,122,0.5)]`} />
-              <div className="mb-6 flex flex-wrap items-center gap-6">
-                <span className="dark:text-white/30 text-brand-dark/30 font-mono font-black text-lg uppercase tracking-widest">{exp.period}</span>
-                <span className={`px-6 py-2 bg-brand-accent/10 text-brand-accent text-xs font-black uppercase rounded-2xl tracking-widest border border-brand-accent/20`}>
+              <div className={`absolute left-[-11px] md:left-[-14px] top-0 w-5 h-5 md:w-6 md:h-6 rounded-full bg-brand-accent shadow-[0_0_30px_rgba(255,0,122,0.5)]`} />
+              <div className="mb-4 md:mb-6 flex flex-wrap items-center gap-4 md:gap-6">
+                <span className="dark:text-white/30 text-brand-dark/30 font-mono font-black text-sm md:text-lg uppercase tracking-widest">{exp.period}</span>
+                <span className={`px-4 md:px-6 py-1.5 md:py-2 bg-brand-accent/10 text-brand-accent text-[10px] md:text-xs font-black uppercase rounded-xl md:rounded-2xl tracking-widest border border-brand-accent/20`}>
                   {exp.role}
                 </span>
               </div>
-              <h3 className="text-4xl md:text-6xl font-display font-black mb-6 dark:text-white text-brand-dark">{exp.company}</h3>
-              <p className="dark:text-white/60 text-brand-dark/60 max-w-4xl leading-relaxed text-xl font-medium">{exp.desc}</p>
+              <h3 className="text-2xl md:text-6xl font-display font-black mb-4 md:mb-6 dark:text-white text-brand-dark">{exp.company}</h3>
+              <p className="text-sm md:text-base dark:text-white/60 text-brand-dark/60 max-w-4xl leading-relaxed font-medium">{exp.desc}</p>
             </motion.div>
           ))}
         </div>
       </Section>
 
       {/* Newsletter Section */}
-      <section className="py-32 px-6 md:px-24 bg-brand-dark relative overflow-hidden">
+      <section className="py-16 md:py-32 px-5 md:px-24 bg-brand-dark relative overflow-hidden">
         <div className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-brand-accent rounded-full blur-[150px]" />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300px] md:w-[800px] h-[300px] md:h-[800px] bg-brand-accent rounded-full blur-[100px] md:blur-[150px]" />
         </div>
         
         <div className="max-w-7xl mx-auto relative z-10">
-          <div className="grid lg:grid-cols-2 gap-20 items-center">
+          <div className="grid lg:grid-cols-2 gap-12 md:gap-20 items-center">
             <div>
-              <h2 className="text-5xl md:text-7xl font-display font-black text-white mb-8 leading-none">
+              <h2 className="text-4xl md:text-7xl font-display font-black text-white mb-6 md:mb-8 leading-none">
                 STAY <span className="text-brand-accent">AHEAD</span> OF THE CURVE.
               </h2>
-              <p className="text-xl text-white/60 font-medium max-w-md">
+              <p className="text-lg md:text-xl text-white/60 font-medium max-w-md">
                 Subscribe to my newsletter for exclusive tech insights, project updates, and industry trends.
               </p>
             </div>
             
             <form onSubmit={handleNewsletterSubmit} className="relative">
-              <div className="flex flex-col md:flex-row gap-4">
+              <div className="flex flex-col sm:flex-row gap-4">
                 <input 
                   type="email" 
                   value={newsletterEmail}
                   onChange={(e) => setNewsletterEmail(e.target.value)}
-                  placeholder="Enter your email address"
-                  className="flex-1 bg-white/5 border border-white/10 rounded-2xl px-8 py-6 text-white font-bold outline-none focus:border-brand-accent transition-all"
+                  placeholder="Enter your email"
+                  className="flex-1 bg-white/5 border border-white/10 rounded-xl md:rounded-2xl px-6 md:px-8 py-4 md:py-6 text-white font-bold outline-none focus:border-brand-accent transition-all text-sm md:text-base"
                   required
                 />
                 <button 
                   type="submit"
                   disabled={newsletterStatus.type === 'loading'}
-                  className="px-12 py-6 bg-brand-accent text-white font-black rounded-2xl hover:scale-105 active:scale-95 transition-all shadow-xl shadow-brand-accent/30 disabled:opacity-50"
+                  className="px-8 md:px-12 py-4 md:py-6 bg-brand-accent text-white font-black rounded-xl md:rounded-2xl hover:scale-105 active:scale-95 transition-all shadow-xl shadow-brand-accent/30 disabled:opacity-50 text-xs md:text-base"
                 >
-                  {newsletterStatus.type === 'loading' ? 'SUBSCRIBING...' : 'SUBSCRIBE'}
+                  {newsletterStatus.type === 'loading' ? '...' : 'SUBSCRIBE'}
                 </button>
               </div>
               {newsletterStatus.message && (
@@ -765,9 +941,9 @@ export default function Home() {
       <Section id="testimonials" className="bg-brand-secondary/5 relative overflow-hidden">
         <Sparkles className="absolute top-20 right-20 text-brand-accent opacity-20 animate-pulse-glow" size={100} />
         <div className="max-w-7xl mx-auto relative z-10">
-          <div className="text-center mb-24">
-            <Quote className="mx-auto text-brand-accent mb-8 opacity-30" size={60} />
-            <h2 className="text-5xl md:text-8xl font-display font-black dark:text-white text-brand-dark leading-none">
+          <div className="text-center mb-16 md:mb-24">
+            <Quote className="mx-auto text-brand-accent mb-6 md:mb-8 opacity-30 h-10 w-10 md:h-16 md:w-16" />
+            <h2 className="text-4xl sm:text-5xl md:text-8xl font-display font-black dark:text-white text-brand-dark leading-none">
               CLIENT <br /> <span className="text-gradient">TRUST.</span>
             </h2>
           </div>
@@ -780,20 +956,20 @@ export default function Home() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.1 }}
-                className="p-12 bg-white dark:bg-white/5 rounded-[3.5rem] border border-black/5 dark:border-white/5 shadow-2xl relative group"
+                className="p-8 md:p-12 bg-white dark:bg-white/5 rounded-[2.5rem] md:rounded-[3.5rem] border border-black/5 dark:border-white/5 shadow-2xl relative group"
               >
-                <div className="absolute -top-6 -left-6">
-                  <div className="w-16 h-16 bg-brand-accent rounded-2xl flex items-center justify-center shadow-xl shadow-brand-accent/30 rotate-12 group-hover:rotate-0 transition-transform">
-                    <Quote className="text-white" size={24} />
+                <div className="absolute -top-4 -left-4 md:-top-6 md:-left-6">
+                  <div className="w-12 h-12 md:w-16 md:h-16 bg-brand-accent rounded-xl md:rounded-2xl flex items-center justify-center shadow-xl shadow-brand-accent/30 rotate-12 group-hover:rotate-0 transition-transform">
+                    <Quote className="text-white w-5 h-5 md:w-6 md:h-6" />
                   </div>
                 </div>
                 
-                <p className="text-xl dark:text-white/80 text-brand-dark/80 mb-10 leading-relaxed font-medium italic">
+                <p className="text-base md:text-xl dark:text-white/80 text-brand-dark/80 mb-8 md:mb-10 leading-relaxed font-medium italic">
                   "{t.text}"
                 </p>
 
-                <div className="flex items-center gap-6">
-                  <div className="w-16 h-16 rounded-2xl overflow-hidden border-2 border-brand-accent/20">
+                <div className="flex items-center gap-4 md:gap-6">
+                  <div className="w-12 h-12 md:w-16 md:h-16 rounded-xl md:rounded-2xl overflow-hidden border-2 border-brand-accent/20">
                     <img 
                       src={t.image} 
                       alt={t.name} 
@@ -802,8 +978,8 @@ export default function Home() {
                     />
                   </div>
                   <div>
-                    <p className="text-lg font-black dark:text-white text-brand-dark uppercase tracking-wider">{t.name}</p>
-                    <p className="text-[10px] dark:text-white/40 text-brand-dark/40 uppercase tracking-[0.2em] font-bold mt-1">
+                    <p className="text-base md:text-lg font-black dark:text-white text-brand-dark uppercase tracking-wider">{t.name}</p>
+                    <p className="text-[9px] md:text-[10px] dark:text-white/40 text-brand-dark/40 uppercase tracking-[0.2em] font-bold mt-0.5 md:mt-1">
                       {t.role}, {t.company}
                     </p>
                   </div>
@@ -818,28 +994,28 @@ export default function Home() {
       <Section id="contact" className="relative overflow-hidden">
         <div className="max-w-7xl mx-auto w-full">
           <div>
-            <h2 className="text-7xl md:text-[10rem] font-display font-black mb-12 dark:text-white text-brand-dark leading-[0.8] tracking-tighter">
+            <h2 className="text-5xl sm:text-7xl md:text-[10rem] font-display font-black mb-8 md:mb-12 dark:text-white text-brand-dark leading-[0.8] tracking-tighter">
               LET'S <br /> <span className="text-gradient">BUILD.</span>
             </h2>
-            <p className="text-2xl dark:text-white/60 text-brand-dark/60 mb-16 font-medium max-w-md">
+            <p className="text-lg md:text-2xl dark:text-white/60 text-brand-dark/60 mb-12 md:mb-16 font-medium max-w-md">
               Ready to take your infrastructure, code, or creative assets to the next level?
             </p>
             
-            <div className="grid md:grid-cols-2 gap-10">
+            <div className="grid md:grid-cols-2 gap-8 md:gap-10">
               {[
-                { icon: <Mail size={28} />, label: "Email", value: "undisputedfaith@gmail.com", link: "mailto:undisputedfaith@gmail.com" },
-                { icon: <Phone size={28} />, label: "Phone", value: "+234 902 1353 191", link: "tel:+2349021353191" }
+                { icon: <Mail className="w-6 h-6 md:w-7 md:h-7" />, label: "Email", value: "undisputedfaith@gmail.com", link: "mailto:undisputedfaith@gmail.com" },
+                { icon: <Phone className="w-6 h-6 md:w-7 md:h-7" />, label: "Phone", value: "+234 902 1353 191", link: "tel:+2349021353191" }
               ].map((item, i) => (
-                <div key={i} className="flex items-center gap-8 group">
+                <div key={i} className="flex items-center gap-6 md:gap-8 group">
                   <a 
                     href={item.link}
-                    className="p-6 bg-black/5 dark:bg-white/5 rounded-3xl group-hover:bg-brand-accent group-hover:text-white transition-all dark:text-white text-brand-dark shadow-lg"
+                    className="p-4 md:p-6 bg-black/5 dark:bg-white/5 rounded-2xl md:rounded-3xl group-hover:bg-brand-accent group-hover:text-white transition-all dark:text-white text-brand-dark shadow-lg"
                   >
                     {item.icon}
                   </a>
                   <div>
-                    <p className="dark:text-white/40 text-brand-dark/40 text-xs uppercase tracking-[0.3em] font-black mb-2">{item.label}</p>
-                    <a href={item.link} className="text-2xl font-bold dark:text-white text-brand-dark hover:text-brand-accent transition-colors">{item.value}</a>
+                    <p className="dark:text-white/40 text-brand-dark/40 text-[10px] uppercase tracking-[0.3em] font-black mb-1 md:mb-2">{item.label}</p>
+                    <a href={item.link} className="text-lg md:text-2xl font-bold dark:text-white text-brand-dark hover:text-brand-accent transition-colors break-all md:break-normal">{item.value}</a>
                   </div>
                 </div>
               ))}
@@ -847,9 +1023,9 @@ export default function Home() {
           </div>
         </div>
         
-        <footer className="mt-40 pt-16 border-t dark:border-white/5 border-black/5 flex flex-col md:flex-row justify-between items-center gap-12 dark:text-white/40 text-brand-dark/40 text-xs font-black tracking-[0.4em] uppercase">
+        <footer className="mt-20 md:mt-40 pt-12 md:pt-16 border-t dark:border-white/5 border-black/5 flex flex-col md:flex-row justify-between items-center gap-8 md:gap-12 dark:text-white/40 text-brand-dark/40 text-[10px] font-black tracking-[0.3em] md:tracking-[0.4em] uppercase text-center md:text-left">
           <p>© 2026 TECH BEAST.</p>
-          <div className="flex gap-12">
+          <div className="flex flex-wrap justify-center gap-6 md:gap-12">
             <a href="#" className="hover:text-brand-accent transition-all">GITHUB</a>
             <a href="#" className="hover:text-brand-accent transition-all">LINKEDIN</a>
             <a href="#" className="hover:text-brand-accent transition-all">INSTAGRAM</a>

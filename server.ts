@@ -1,6 +1,8 @@
 import express from "express";
 import { createServer as createViteServer } from "vite";
 import Database from "better-sqlite3";
+import helmet from "helmet";
+import cors from "cors";
 import path from "path";
 import { fileURLToPath } from "url";
 
@@ -31,6 +33,12 @@ async function startServer() {
   const app = express();
   const PORT = 3000;
 
+  // Security Middleware
+  app.use(helmet({
+    contentSecurityPolicy: false,
+    crossOriginEmbedderPolicy: false,
+  }));
+  app.use(cors());
   app.use(express.json());
 
   // API Routes

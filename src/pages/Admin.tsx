@@ -47,6 +47,7 @@ export default function Admin() {
   const [activeTab, setActiveTab] = useState<Tab>('software');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [loginError, setLoginError] = useState("");
   
   // Data State
   const [data, setData] = useState<any[]>([]);
@@ -84,10 +85,11 @@ export default function Admin() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!auth) return;
+    setLoginError("");
     try {
       await signInWithEmailAndPassword(auth, email, password);
-    } catch (error: any) {
-      alert(error.message);
+    } catch {
+      setLoginError("Invalid email or password. Please try again.");
     }
   };
 
@@ -179,7 +181,7 @@ export default function Admin() {
               <input 
                 type="email" 
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => { setEmail(e.target.value); setLoginError(""); }}
                 className="w-full bg-white/5 border border-white/10 rounded-xl px-5 py-4 text-white outline-none focus:border-brand-accent transition-all"
                 placeholder="admin@techbeast.com"
                 required
@@ -190,13 +192,18 @@ export default function Admin() {
               <input 
                 type="password" 
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e) => { setPassword(e.target.value); setLoginError(""); }}
                 className="w-full bg-white/5 border border-white/10 rounded-xl px-5 py-4 text-white outline-none focus:border-brand-accent transition-all"
                 placeholder="••••••••"
                 required
               />
             </div>
-            <button className="w-full py-5 bg-brand-accent text-white font-black rounded-xl hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl shadow-brand-accent/30 tracking-[0.2em] uppercase text-xs">
+            {loginError && (
+              <motion.p initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }} className="text-red-400 text-xs font-bold text-center tracking-widest uppercase">
+                {loginError}
+              </motion.p>
+            )}
+            <button type="submit" className="w-full py-5 bg-brand-accent text-white font-black rounded-xl hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl shadow-brand-accent/30 tracking-[0.2em] uppercase text-xs">
               LOGIN TO DASHBOARD
             </button>
           </form>
